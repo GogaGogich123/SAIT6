@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from 'react';
-import { supabase } from '../lib/supabase';
+import { loginUser, type User as DbUser, type Cadet } from '../lib/supabase';
 
 interface User {
   id: string;
@@ -30,91 +30,44 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
-  // Тестовые пользователи
-  const testUsers = [
-    { email: 'admin@nkkk.ru', password: 'admin123', role: 'admin', name: 'Администратор Иванов И.И.' },
-    { email: 'ivanov@nkkk.ru', password: 'ivanov123', role: 'cadet', name: 'Иванов Александр Дмитриевич', platoon: '10-1', squad: 1, cadetId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
-    { email: 'petrov@nkkk.ru', password: 'petrov123', role: 'cadet', name: 'Петров Михаил Андреевич', platoon: '10-1', squad: 2, cadetId: 'b1ffdc99-9c0b-4ef8-bb6d-6bb9bd380a22' },
-    { email: 'sidorov@nkkk.ru', password: 'sidorov123', role: 'cadet', name: 'Сидоров Дмитрий Владимирович', platoon: '9-2', squad: 1, cadetId: 'c2ggec99-9c0b-4ef8-bb6d-6bb9bd380a33' },
-    { email: 'kozlov@nkkk.ru', password: 'kozlov123', role: 'cadet', name: 'Козлов Артём Сергеевич', platoon: '11-1', squad: 3, cadetId: 'd3hhfc99-9c0b-4ef8-bb6d-6bb9bd380a44' },
-    { email: 'morozov@nkkk.ru', password: 'morozov123', role: 'cadet', name: 'Морозов Владислав Игоревич', platoon: '8-1', squad: 2, cadetId: 'e4iigc99-9c0b-4ef8-bb6d-6bb9bd380a55' },
-  ];
-
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Проверяем тестовых пользователей
-      const testUser = testUsers.find(u => u.email === email && u.password === password);
-      if (testUser) {
-        return mockLogin(email, password);
+      // Аутентификация через базу данных
+      const result = await loginUser(email, password);
+      
+      if (!result) {
+        return false;
       }
 
-      // Попытка входа через Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      const { user: dbUser, cadet } = result;
 
-      if (authError || !authData.user) {
-        // Fallback на mock данные для демонстрации
-        return mockLogin(email, password);
-      }
-
-      if (authData.user) {
-        // Получаем данные кадета из базы
-        const { data: cadetData, error: cadetError } = await supabase
-          .from('cadets')
-          .select('*')
-          .eq('auth_user_id', authData.user.id)
-          .single();
-
-        if (!cadetError && cadetData) {
-          setUser({
-            id: authData.user.id,
-            name: cadetData.name,
-            role: 'cadet',
-            platoon: cadetData.platoon,
-            squad: cadetData.squad,
-            cadetId: cadetData.id
-          });
-          return true;
-        }
-      }
-
-      // If Supabase auth succeeded but no cadet data found, try mock login
-      return mockLogin(email, password);
-    } catch (error) {
-      console.error('Login error:', error);
-      return mockLogin(email, password);
-    }
-  };
-
-  const mockLogin = (email: string, password: string): boolean => {
-    const testUser = testUsers.find(u => u.email === email && u.password === password);
-    if (testUser) {
-      if (testUser.role === 'admin') {
+      if (dbUser.role === 'admin') {
         setUser({
-          id: '1',
-          name: testUser.name,
+          id: dbUser.id,
+          name: dbUser.name,
           role: 'admin'
         });
-      } else {
+      } else if (dbUser.role === 'cadet' && cadet) {
         setUser({
-          id: testUser.cadetId!,
-          name: testUser.name,
+          id: dbUser.id,
+          name: dbUser.name,
           role: 'cadet',
-          platoon: testUser.platoon,
-          squad: testUser.squad,
-          cadetId: testUser.cadetId
+          platoon: cadet.platoon,
+          squad: cadet.squad,
+          cadetId: cadet.id
         });
+      } else {
+        return false;
       }
+      
       return true;
+    } catch (error) {
+      console.error('Login error:', error);
+      return false;
     }
-    return false;
   };
 
   const logout = () => {
-    // Выход из Supabase Auth
-    supabase.auth.signOut().catch(console.error);
     setUser(null);
   };
 

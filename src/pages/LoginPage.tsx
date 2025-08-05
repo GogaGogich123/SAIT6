@@ -131,15 +131,15 @@ const LoginPage: React.FC = () => {
                 <div className="bg-white/5 rounded p-2">
                   <strong>Администратор:</strong><br />
                   Email: admin@nkkk.ru<br />
-                  Пароль: admin123
+                  Пароль: password123
                 </div>
                 <div className="bg-white/5 rounded p-2">
                   <strong>Кадеты:</strong><br />
-                  ivanov@nkkk.ru / ivanov123<br />
-                  petrov@nkkk.ru / petrov123<br />
-                  sidorov@nkkk.ru / sidorov123<br />
-                  kozlov@nkkk.ru / kozlov123<br />
-                  morozov@nkkk.ru / morozov123
+                  ivanov@nkkk.ru / password123<br />
+                  petrov@nkkk.ru / password123<br />
+                  sidorov@nkkk.ru / password123<br />
+                  kozlov@nkkk.ru / password123<br />
+                  morozov@nkkk.ru / password123
                 </div>
               </div>
             </div>

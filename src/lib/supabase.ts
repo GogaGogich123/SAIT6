@@ -1,9 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
+import bcrypt from 'bcryptjs';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// User types
+export interface User {
+  id: string;
+  email: string;
+  role: 'admin' | 'cadet';
+  name: string;
+  created_at: string;
+}
 
 // Types
 export interface Cadet {
@@ -144,6 +154,88 @@ export const getCadetById = async (id: string): Promise<Cadet> => {
     throw error;
   }
   return data;
+};
+
+// Authentication functions
+export const loginUser = async (email: string, password: string): Promise<{ user: User; cadet?: Cadet } | null> => {
+  try {
+    // Получаем пользователя по email
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (userError || !userData) {
+      return null;
+    }
+
+    // Проверяем пароль
+    const isValidPassword = await bcrypt.compare(password, userData.password_hash);
+    if (!isValidPassword) {
+      return null;
+    }
+
+    const user: User = {
+      id: userData.id,
+      email: userData.email,
+      role: userData.role,
+      name: userData.name,
+      created_at: userData.created_at
+    };
+
+    // Если это кадет, получаем его данные
+    if (user.role === 'cadet') {
+      const { data: cadetData } = await supabase
+        .from('cadets')
+        .select('*')
+        .eq('auth_user_id', user.id)
+        .single();
+
+      return { user, cadet: cadetData };
+    }
+
+    return { user };
+  } catch (error) {
+    console.error('Login error:', error);
+    return null;
+  }
+};
+
+export const registerUser = async (email: string, password: string, name: string, role: 'admin' | 'cadet' = 'cadet'): Promise<User | null> => {
+  try {
+    // Хешируем пароль
+    const saltRounds = 10;
+    const passwordHash = await bcrypt.hash(password, saltRounds);
+
+    // Создаем пользователя
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
+        email,
+        password_hash: passwordHash,
+        role,
+        name
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Registration error:', error);
+      return null;
+    }
+
+    return {
+      id: data.id,
+      email: data.email,
+      role: data.role,
+      name: data.name,
+      created_at: data.created_at
+    };
+  } catch (error) {
+    console.error('Registration error:', error);
+    return null;
+  }
 };
 
 export const getCadetScores = async (cadetId: string): Promise<Score | null> => {
