@@ -56,6 +56,12 @@ const CadetProfile: React.FC = () => {
         
         // Получаем данные кадета
         const cadetData = await getCadetById(id);
+        
+        if (!cadetData) {
+          setError('Cadet not found');
+          return;
+        }
+        
         setCadet(cadetData);
         
         // Получаем баллы кадета

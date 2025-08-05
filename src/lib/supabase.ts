@@ -235,6 +235,9 @@ export const submitTask = async (taskId: string, cadetId: string, submissionText
 };
 
 export const abandonTask = async (taskId: string, cadetId: string): Promise<void> => {
+  // Set auth context for RLS policies
+  const { data: { session } } = await supabase.auth.getSession();
+  
   const { error } = await supabase
     .from('task_submissions')
     .delete()
