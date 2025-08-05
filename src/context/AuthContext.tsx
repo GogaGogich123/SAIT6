@@ -32,6 +32,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      // Check for mock credentials first to avoid unnecessary Supabase calls
+      if ((email === 'admin@nkkk.ru' && password === 'admin123') || 
+          (email === 'cadet@nkkk.ru' && password === 'cadet123')) {
+        return mockLogin(email, password);
+      }
+
       // Попытка входа через Supabase Auth
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -82,12 +88,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return true;
     } else if (email === 'cadet@nkkk.ru' && password === 'cadet123') {
       setUser({
-        id: 'cadet1',
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         name: 'Петров Алексей Владимирович',
         role: 'cadet',
         platoon: '10-1',
         squad: 2,
-        cadetId: 'cadet1'
+        cadetId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
       });
       return true;
     }
