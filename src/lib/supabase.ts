@@ -6,6 +6,28 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Test database connection
+export const testDatabaseConnection = async (): Promise<boolean> => {
+  try {
+    console.log('Testing database connection...');
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.error('Database connection test failed:', error);
+      return false;
+    }
+    
+    console.log('Database connection test successful');
+    return true;
+  } catch (error) {
+    console.error('Database connection test error:', error);
+    return false;
+  }
+};
+
 // User types
 export interface User {
   id: string;
@@ -159,6 +181,8 @@ export const getCadetById = async (id: string): Promise<Cadet> => {
 // Authentication functions
 export const loginUser = async (email: string, password: string): Promise<{ user: User; cadet?: Cadet } | null> => {
   try {
+    console.log('Attempting login for:', email);
+    
     // Получаем пользователя по email
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -166,13 +190,19 @@ export const loginUser = async (email: string, password: string): Promise<{ user
       .eq('email', email)
       .single();
 
+    console.log('User query result:', { userData, userError });
+
     if (userError || !userData) {
+      console.log('User not found or error:', userError);
       return null;
     }
 
     // Проверяем пароль
     const isValidPassword = await bcrypt.compare(password, userData.password_hash);
+    console.log('Password validation result:', isValidPassword);
+    
     if (!isValidPassword) {
+      console.log('Invalid password');
       return null;
     }
 
@@ -184,6 +214,7 @@ export const loginUser = async (email: string, password: string): Promise<{ user
       created_at: userData.created_at
     };
 
+    console.log('User authenticated successfully:', user);
     // Если это кадет, получаем его данные
     if (user.role === 'cadet') {
       const { data: cadetData } = await supabase
@@ -192,6 +223,7 @@ export const loginUser = async (email: string, password: string): Promise<{ user
         .eq('auth_user_id', user.id)
         .single();
 
+      console.log('Cadet data:', cadetData);
       return { user, cadet: cadetData };
     }
 
@@ -204,6 +236,8 @@ export const loginUser = async (email: string, password: string): Promise<{ user
 
 export const registerUser = async (email: string, password: string, name: string, role: 'admin' | 'cadet' = 'cadet'): Promise<User | null> => {
   try {
+    console.log('Registering user:', { email, name, role });
+    
     // Хешируем пароль
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
@@ -225,6 +259,8 @@ export const registerUser = async (email: string, password: string, name: string
       return null;
     }
 
+    console.log('User registered successfully:', data);
+    
     return {
       id: data.id,
       email: data.email,

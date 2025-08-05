@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { LogIn, Shield, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import SVGBackground from '../components/SVGBackground';
+import { testDatabaseConnection } from '../lib/supabase';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -13,19 +14,30 @@ const LoginPage: React.FC = () => {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Test database connection on component mount
+  useEffect(() => {
+    testDatabaseConnection();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
 
+    console.log('LoginPage: Attempting login with:', { email, password: '***' });
     try {
       const success = await login(email, password);
+      console.log('LoginPage: Login result:', success);
+      
       if (success) {
+        console.log('LoginPage: Login successful, redirecting...');
         navigate('/');
       } else {
+        console.log('LoginPage: Login failed');
         setError('Неверный email или пароль');
       }
     } catch (err) {
+      console.error('LoginPage: Login error:', err);
       setError('Произошла ошибка при входе');
     } finally {
       setIsLoading(false);
@@ -140,6 +152,10 @@ const LoginPage: React.FC = () => {
                   sidorov@nkkk.ru / password123<br />
                   kozlov@nkkk.ru / password123<br />
                   morozov@nkkk.ru / password123
+                </div>
+                <div className="bg-yellow-500/10 border border-yellow-500/20 rounded p-2 mt-2">
+                  <strong className="text-yellow-400">Отладка:</strong><br />
+                  <span className="text-xs">Откройте консоль браузера (F12) для просмотра логов входа</span>
                 </div>
               </div>
             </div>

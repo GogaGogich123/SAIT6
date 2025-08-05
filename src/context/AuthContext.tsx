@@ -32,22 +32,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
+      console.log('AuthContext: Starting login process');
+      
       // Аутентификация через базу данных
       const result = await loginUser(email, password);
       
+      console.log('AuthContext: Login result:', result);
+      
       if (!result) {
+        console.log('AuthContext: Login failed - no result');
         return false;
       }
 
       const { user: dbUser, cadet } = result;
 
       if (dbUser.role === 'admin') {
+        console.log('AuthContext: Setting admin user');
         setUser({
           id: dbUser.id,
           name: dbUser.name,
           role: 'admin'
         });
       } else if (dbUser.role === 'cadet' && cadet) {
+        console.log('AuthContext: Setting cadet user');
         setUser({
           id: dbUser.id,
           name: dbUser.name,
@@ -57,9 +64,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           cadetId: cadet.id
         });
       } else {
+        console.log('AuthContext: Invalid role or missing cadet data');
         return false;
       }
       
+      console.log('AuthContext: Login successful');
       return true;
     } catch (error) {
       console.error('Login error:', error);
