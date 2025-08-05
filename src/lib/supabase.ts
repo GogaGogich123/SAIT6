@@ -76,6 +76,23 @@ export interface News {
   is_main: boolean;
   background_image_url?: string;
   images?: string[];
+  likes_count?: number;
+  comments_count?: number;
+}
+
+export interface NewsComment {
+  id: string;
+  news_id: string;
+  author_name: string;
+  content: string;
+  created_at: string;
+}
+
+export interface NewsLike {
+  id: string;
+  news_id: string;
+  user_name: string;
+  created_at: string;
 }
 
 export interface Task {
@@ -184,6 +201,52 @@ export const getNews = async (): Promise<News[]> => {
   
   if (error) throw error;
   return data || [];
+};
+
+export const getNewsComments = async (newsId: string): Promise<NewsComment[]> => {
+  // Mock data for comments
+  const mockComments: NewsComment[] = [
+    {
+      id: '1',
+      news_id: newsId,
+      author_name: 'Иванов А.Д.',
+      content: 'Отличная новость! Поздравляю всех участников.',
+      created_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    },
+    {
+      id: '2',
+      news_id: newsId,
+      author_name: 'Петров М.А.',
+      content: 'Очень горжусь нашим корпусом!',
+      created_at: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString()
+    }
+  ];
+  
+  return mockComments;
+};
+
+export const addNewsComment = async (newsId: string, authorName: string, content: string): Promise<NewsComment> => {
+  // Mock implementation
+  const newComment: NewsComment = {
+    id: Math.random().toString(36).substr(2, 9),
+    news_id: newsId,
+    author_name: authorName,
+    content,
+    created_at: new Date().toISOString()
+  };
+  
+  return newComment;
+};
+
+export const toggleNewsLike = async (newsId: string, userName: string): Promise<{ liked: boolean; count: number }> => {
+  // Mock implementation
+  const currentLikes = Math.floor(Math.random() * 20) + 5;
+  const liked = Math.random() > 0.5;
+  
+  return {
+    liked,
+    count: liked ? currentLikes + 1 : Math.max(0, currentLikes - 1)
+  };
 };
 
 export const getTasks = async (): Promise<Task[]> => {

@@ -30,11 +30,21 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
 
+  // Тестовые пользователи
+  const testUsers = [
+    { email: 'admin@nkkk.ru', password: 'admin123', role: 'admin', name: 'Администратор Иванов И.И.' },
+    { email: 'ivanov@nkkk.ru', password: 'ivanov123', role: 'cadet', name: 'Иванов Александр Дмитриевич', platoon: '10-1', squad: 1, cadetId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' },
+    { email: 'petrov@nkkk.ru', password: 'petrov123', role: 'cadet', name: 'Петров Михаил Андреевич', platoon: '10-1', squad: 2, cadetId: 'b1ffdc99-9c0b-4ef8-bb6d-6bb9bd380a22' },
+    { email: 'sidorov@nkkk.ru', password: 'sidorov123', role: 'cadet', name: 'Сидоров Дмитрий Владимирович', platoon: '9-2', squad: 1, cadetId: 'c2ggec99-9c0b-4ef8-bb6d-6bb9bd380a33' },
+    { email: 'kozlov@nkkk.ru', password: 'kozlov123', role: 'cadet', name: 'Козлов Артём Сергеевич', platoon: '11-1', squad: 3, cadetId: 'd3hhfc99-9c0b-4ef8-bb6d-6bb9bd380a44' },
+    { email: 'morozov@nkkk.ru', password: 'morozov123', role: 'cadet', name: 'Морозов Владислав Игоревич', platoon: '8-1', squad: 2, cadetId: 'e4iigc99-9c0b-4ef8-bb6d-6bb9bd380a55' },
+  ];
+
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Check for mock credentials first to avoid unnecessary Supabase calls
-      if ((email === 'admin@nkkk.ru' && password === 'admin123') || 
-          (email === 'cadet@nkkk.ru' && password === 'cadet123')) {
+      // Проверяем тестовых пользователей
+      const testUser = testUsers.find(u => u.email === email && u.password === password);
+      if (testUser) {
         return mockLogin(email, password);
       }
 
@@ -79,22 +89,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const mockLogin = (email: string, password: string): boolean => {
-    if (email === 'admin@nkkk.ru' && password === 'admin123') {
-      setUser({
-        id: '1',
-        name: 'Администратор Иванов И.И.',
-        role: 'admin'
-      });
-      return true;
-    } else if (email === 'cadet@nkkk.ru' && password === 'cadet123') {
-      setUser({
-        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        name: 'Петров Алексей Владимирович',
-        role: 'cadet',
-        platoon: '10-1',
-        squad: 2,
-        cadetId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'
-      });
+    const testUser = testUsers.find(u => u.email === email && u.password === password);
+    if (testUser) {
+      if (testUser.role === 'admin') {
+        setUser({
+          id: '1',
+          name: testUser.name,
+          role: 'admin'
+        });
+      } else {
+        setUser({
+          id: testUser.cadetId!,
+          name: testUser.name,
+          role: 'cadet',
+          platoon: testUser.platoon,
+          squad: testUser.squad,
+          cadetId: testUser.cadetId
+        });
+      }
       return true;
     }
     return false;

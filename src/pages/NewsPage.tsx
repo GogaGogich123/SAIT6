@@ -1,26 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, User, ChevronLeft, ChevronRight, Star, Share2, Heart, MessageCircle } from 'lucide-react';
+import { Calendar, User, ChevronLeft, ChevronRight, Star, Share2, Heart, MessageCircle, Send } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import SVGBackground from '../components/SVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
-import { getNews, type News } from '../lib/supabase';
+import { getNews, getNewsComments, addNewsComment, toggleNewsLike, type News, type NewsComment } from '../lib/supabase';
 
 const NewsPage: React.FC = () => {
+  const { user } = useAuth();
+  const { success, error } = useNotifications();
   const [selectedNews, setSelectedNews] = useState<News | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [comments, setComments] = useState<NewsComment[]>([]);
+  const [newComment, setNewComment] = useState('');
+  const [likes, setLikes] = useState<{ [key: string]: { count: number; liked: boolean } }>({});
   const [news, setNews] = useState<News[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [loadingError, setLoadingError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchNews = async () => {
       try {
         setLoading(true);
         const newsData = await getNews();
-        setNews(newsData);
+        const newsWithCounts = newsData.map(item => ({
+          ...item,
+          likes_count: Math.floor(Math.random() * 50) + 5,
+          comments_count: Math.floor(Math.random() * 10) + 1
+        }));
+        setNews(newsWithCounts);
+        
+        // Initialize likes state
+        const likesState: { [key: string]: { count: number; liked: boolean } } = {};
+        newsWithCounts.forEach(item => {
+          likesState[item.id] = {
+            count: item.likes_count || 0,
+            liked: false
+          };
+        });
+        setLikes(likesState);
       } catch (err) {
         console.error('Error fetching news:', err);
-        setError('Ошибка загрузки новостей');
+        setLoadingError('Ошибка загрузки новостей');
       } finally {
         setLoading(false);
       }
@@ -32,9 +54,18 @@ const NewsPage: React.FC = () => {
   const mainNews = news.find(item => item.is_main);
   const regularNews = news.filter(item => !item.is_main);
 
-  const openNewsModal = (newsItem: News) => {
+  const openNewsModal = async (newsItem: News) => {
     setSelectedNews(newsItem);
     setCurrentImageIndex(0);
+    setNewComment('');
+    
+    try {
+      const newsComments = await getNewsComments(newsItem.id);
+      setComments(newsComments);
+    } catch (err) {
+      console.error('Error fetching comments:', err);
+      setComments([]);
+    }
   };
 
   const closeNewsModal = () => {
@@ -51,6 +82,47 @@ const NewsPage: React.FC = () => {
   const prevImage = () => {
     if (currentImageIndex > 0) {
       setCurrentImageIndex(currentImageIndex - 1);
+    }
+  };
+
+  const handleLike = async (newsId: string) => {
+    if (!user) {
+      error('Требуется авторизация', 'Войдите в систему, чтобы ставить лайки');
+      return;
+    }
+
+    try {
+      const result = await toggleNewsLike(newsId, user.name);
+      setLikes(prev => ({
+        ...prev,
+        [newsId]: result
+      }));
+      
+      if (result.liked) {
+        success('Лайк поставлен!');
+      }
+    } catch (err) {
+      error('Ошибка', 'Не удалось поставить лайк');
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!user || !selectedNews || !newComment.trim()) return;
+
+    try {
+      const comment = await addNewsComment(selectedNews.id, user.name, newComment.trim());
+      setComments(prev => [...prev, comment]);
+      setNewComment('');
+      success('Комментарий добавлен!');
+      
+      // Update comments count
+      setNews(prev => prev.map(item => 
+        item.id === selectedNews.id 
+          ? { ...item, comments_count: (item.comments_count || 0) + 1 }
+          : item
+      ));
+    } catch (err) {
+      error('Ошибка', 'Не удалось добавить комментарий');
     }
   };
 
@@ -82,9 +154,9 @@ const NewsPage: React.FC = () => {
         )}
 
         {/* Error State */}
-        {error && (
+        {loadingError && (
           <div className="text-center py-12 relative z-20">
-            <p className="text-red-400 mb-4">{error}</p>
+            <p className="text-red-400 mb-4">{loadingError}</p>
             <button 
               onClick={() => window.location.reload()}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg"
@@ -95,7 +167,7 @@ const NewsPage: React.FC = () => {
         )}
 
         {/* Main News */}
-        {!loading && !error && mainNews && (
+        {!loading && !loadingError && mainNews && (
           <motion.div
             initial={{ y: 20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -141,7 +213,7 @@ const NewsPage: React.FC = () => {
         )}
 
         {/* Regular News */}
-        {!loading && !error && (
+        {!loading && !loadingError && (
           <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -186,10 +258,11 @@ const NewsPage: React.FC = () => {
                   <motion.button
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
+                    onClick={() => handleLike(news.id)}
                     className="flex items-center space-x-1 text-blue-300 hover:text-yellow-400 transition-colors"
                   >
-                    <Heart className="h-4 w-4" />
-                    <span className="text-sm">12</span>
+                    <Heart className={`h-4 w-4 ${likes[news.id]?.liked ? 'fill-current text-red-400' : ''}`} />
+                    <span className="text-sm">{likes[news.id]?.count || 0}</span>
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -197,7 +270,7 @@ const NewsPage: React.FC = () => {
                     className="flex items-center space-x-1 text-blue-300 hover:text-yellow-400 transition-colors"
                   >
                     <MessageCircle className="h-4 w-4" />
-                    <span className="text-sm">5</span>
+                    <span className="text-sm">{news.comments_count || 0}</span>
                   </motion.button>
                   <motion.button
                     whileHover={{ scale: 1.1 }}
@@ -309,6 +382,63 @@ const NewsPage: React.FC = () => {
                     )}
                   </div>
                 )}
+
+                {/* Comments Section */}
+                <div className="mt-8 border-t border-white/20 pt-6">
+                  <h3 className="text-xl font-bold text-white mb-4">
+                    Комментарии ({comments.length})
+                  </h3>
+                  
+                  {/* Add Comment */}
+                  {user && (
+                    <div className="mb-6">
+                      <div className="flex space-x-3">
+                        <div className="flex-grow">
+                          <textarea
+                            value={newComment}
+                            onChange={(e) => setNewComment(e.target.value)}
+                            placeholder="Написать комментарий..."
+                            rows={3}
+                            className="w-full p-3 bg-white/10 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none"
+                          />
+                        </div>
+                        <button
+                          onClick={handleAddComment}
+                          disabled={!newComment.trim()}
+                          className="self-end bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:opacity-50 disabled:cursor-not-allowed text-white p-3 rounded-lg transition-all duration-300"
+                        >
+                          <Send className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Comments List */}
+                  <div className="space-y-4">
+                    {comments.map((comment) => (
+                      <motion.div
+                        key={comment.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="bg-white/5 rounded-lg p-4"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-white">{comment.author_name}</span>
+                          <span className="text-xs text-blue-300">
+                            {new Date(comment.created_at).toLocaleString('ru-RU')}
+                          </span>
+                        </div>
+                        <p className="text-blue-100">{comment.content}</p>
+                      </motion.div>
+                    ))}
+                    
+                    {comments.length === 0 && (
+                      <p className="text-blue-300 text-center py-4">
+                        Пока нет комментариев. Будьте первым!
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             </motion.div>
           </motion.div>

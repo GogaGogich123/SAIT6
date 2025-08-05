@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { Search, Filter, Trophy, Medal, Target, Users, TrendingUp, TrendingDown } from 'lucide-react';
+import { Search, Filter, Trophy, Medal, Target, Users, TrendingUp, TrendingDown, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import SVGBackground from '../components/SVGBackground';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { getCadets, getCadetScores, type Cadet, type Score } from '../lib/supabase';
@@ -19,6 +19,7 @@ const RatingPage: React.FC = () => {
   const [selectedCategory, setSelectedCategory] = useState<'total' | 'study' | 'discipline' | 'events'>('total');
   const [selectedPlatoon, setSelectedPlatoon] = useState<string>('all');
   const [selectedSquad, setSelectedSquad] = useState<string>('all');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const [searchTerm, setSearchTerm] = useState('');
   const [cadets, setCadets] = useState<CadetWithScores[]>([]);
   const [loading, setLoading] = useState(true);
@@ -88,6 +89,20 @@ const RatingPage: React.FC = () => {
     return matchesSearch && matchesPlatoon && matchesSquad;
   });
 
+  const sortedCadets = [...filteredCadets].sort((a, b) => {
+    let aValue: number, bValue: number;
+    
+    if (selectedCategory === 'total') {
+      aValue = a.total_score;
+      bValue = b.total_score;
+    } else {
+      aValue = a.scores[selectedCategory];
+      bValue = b.scores[selectedCategory];
+    }
+    
+    return sortOrder === 'desc' ? bValue - aValue : aValue - bValue;
+  });
+
   const getRankIcon = (rank: number) => {
     if (rank === 1) return '🥇';
     if (rank === 2) return '🥈';
@@ -106,6 +121,10 @@ const RatingPage: React.FC = () => {
     // Mock data for score changes
     const changes = [5, -2, 8, 3, -1, 12, 0, 4, -3, 7];
     return changes[parseInt(cadet.id.slice(-1)) % changes.length] || 0;
+  };
+
+  const toggleSortOrder = () => {
+    setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
   };
 
   return (
@@ -157,23 +176,23 @@ const RatingPage: React.FC = () => {
           className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 relative z-20"
         >
           {categories.map(({ key, name, icon: Icon, color }) => (
-            <button
+            <motion.button
               key={key}
               onClick={() => setSelectedCategory(key as any)}
-              className={`relative overflow-hidden p-4 rounded-xl transition-all duration-300 ${
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className={`flex items-center space-x-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 relative ${
                 selectedCategory === key
-                  ? 'scale-105 shadow-2xl'
-                  : 'hover:scale-102 opacity-80 hover:opacity-100'
+                  ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-blue-900 shadow-lg scale-105'
+                  : 'bg-white/10 text-white hover:bg-white/20 hover:scale-102'
               }`}
             >
-              <div className={`absolute inset-0 bg-gradient-to-br ${color} ${
-                selectedCategory === key ? 'opacity-100' : 'opacity-60'
-              }`}></div>
-              <div className="relative flex flex-col items-center text-white">
-                <Icon className="h-8 w-8 mb-2" />
-                <span className="font-semibold text-sm">{name}</span>
-              </div>
-            </button>
+              <Icon className="h-5 w-5" />
+              <span>{name}</span>
+              {selectedCategory === key && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-yellow-400 rounded-full animate-pulse"></div>
+              )}
+            </motion.button>
           ))}
         </motion.div>
         )}
@@ -228,8 +247,19 @@ const RatingPage: React.FC = () => {
               </select>
             </div>
 
-            <div className="text-white font-semibold flex items-center justify-center">
-              Найдено: {filteredCadets.length}
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={toggleSortOrder}
+                className="flex items-center space-x-2 bg-white/20 hover:bg-white/30 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                {sortOrder === 'desc' ? <ArrowDown className="h-4 w-4" /> : <ArrowUp className="h-4 w-4" />}
+                <span className="text-sm">{sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}</span>
+              </button>
+            </div>
+            
+            <div className="text-white font-semibold flex items-center justify-center bg-white/10 rounded-lg px-4 py-2">
+              <Users className="h-4 w-4 mr-2" />
+              <span>Найдено: {filteredCadets.length}</span>
             </div>
           </div>
         </motion.div>
@@ -243,7 +273,7 @@ const RatingPage: React.FC = () => {
           transition={{ delay: 0.3 }}
           className="space-y-4 relative z-20"
         >
-          {filteredCadets.map((cadet, index) => (
+          {sortedCadets.map((cadet, index) => (
             <motion.div
               key={cadet.id}
               initial={{ x: -50, opacity: 0 }}
@@ -253,7 +283,7 @@ const RatingPage: React.FC = () => {
             >
               <Link to={`/cadet/${cadet.id}`}>
                 <div className="bg-white/10 backdrop-blur-sm hover:bg-white/20 border border-white/20 hover:border-yellow-400/50 rounded-xl p-6 transition-all duration-300 hover:scale-102 hover:shadow-2xl">
-                  <div className="flex items-center space-x-6">
+                  <div className="flex items-center space-x-6 relative">
                     {/* Rank */}
                     <div className={`flex-shrink-0 w-16 h-16 rounded-full bg-gradient-to-br ${getRankColor(cadet.rank)} flex items-center justify-center font-bold text-white text-lg shadow-lg`}>
                       {getRankIcon(cadet.rank)}
@@ -276,6 +306,12 @@ const RatingPage: React.FC = () => {
                       <p className="text-blue-300">
                         {cadet.platoon} взвод, {cadet.squad} отделение
                       </p>
+                      <div className="flex items-center space-x-2 mt-2">
+                        <span className="text-xs bg-blue-500/20 text-blue-300 px-2 py-1 rounded-full">
+                          Позиция #{index + 1}
+                        </span>
+                        {index < 3 && <span className="text-xs text-yellow-400">🏆 ТОП-3</span>}
+                      </div>
                     </div>
 
                     {/* Scores */}
@@ -283,7 +319,12 @@ const RatingPage: React.FC = () => {
                       <div>
                         <div className="flex items-center justify-center space-x-1">
                           <span className="text-2xl font-bold text-white">{cadet.scores.total}</span>
-                          {(() => {
+                          {selectedCategory === 'total' && (
+                            <div className="ml-2 px-2 py-1 bg-yellow-400/20 text-yellow-400 rounded-full text-xs font-bold">
+                              ОБЩИЙ
+                            </div>
+                          )}
+                          {selectedCategory === 'total' && (() => {
                             const change = getScoreChange(cadet);
                             if (change > 0) {
                               return <TrendingUp className="h-4 w-4 text-green-400" />;
@@ -293,7 +334,7 @@ const RatingPage: React.FC = () => {
                             return null;
                           })()}
                         </div>
-                        <div className="text-xs text-blue-300">Общий</div>
+                        <div className="text-xs text-blue-300">Общий балл</div>
                         {(() => {
                           const change = getScoreChange(cadet);
                           if (change !== 0) {
@@ -307,17 +348,31 @@ const RatingPage: React.FC = () => {
                         })()}
                       </div>
                       <div>
-                        <div className="text-lg font-semibold text-blue-300">{cadet.scores.study}</div>
+                        <div className={`text-lg font-semibold ${selectedCategory === 'study' ? 'text-yellow-400 text-xl' : 'text-blue-300'}`}>
+                          {cadet.scores.study}
+                          {selectedCategory === 'study' && <span className="ml-1 text-xs">★</span>}
+                        </div>
                         <div className="text-xs text-blue-400">Учёба</div>
                       </div>
                       <div>
-                        <div className="text-lg font-semibold text-red-300">{cadet.scores.discipline}</div>
+                        <div className={`text-lg font-semibold ${selectedCategory === 'discipline' ? 'text-yellow-400 text-xl' : 'text-red-300'}`}>
+                          {cadet.scores.discipline}
+                          {selectedCategory === 'discipline' && <span className="ml-1 text-xs">★</span>}
+                        </div>
                         <div className="text-xs text-red-400">Дисциплина</div>
                       </div>
                       <div>
-                        <div className="text-lg font-semibold text-green-300">{cadet.scores.events}</div>
+                        <div className={`text-lg font-semibold ${selectedCategory === 'events' ? 'text-yellow-400 text-xl' : 'text-green-300'}`}>
+                          {cadet.scores.events}
+                          {selectedCategory === 'events' && <span className="ml-1 text-xs">★</span>}
+                        </div>
                         <div className="text-xs text-green-400">Мероприятия</div>
                       </div>
+                    </div>
+                    
+                    {/* Trending indicator */}
+                    <div className="absolute top-2 right-2">
+                      {index < 3 && <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>}
                     </div>
                   </div>
                 </div>
