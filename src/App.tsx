@@ -12,29 +12,24 @@ import TasksPage from './pages/TasksPage';
 import LoginPage from './pages/LoginPage';
 import AdminPage from './pages/AdminPage';
 import { AuthProvider } from './context/AuthContext';
-import { useToast } from './hooks/useToast';
+import { NotificationProvider } from './context/NotificationContext';
 
 const AppContent: React.FC = () => {
-  const { toasts, removeToast } = useToast();
-
   return (
-    <>
-      <div className="min-h-screen gradient-bg">
-        <Header />
-        <AnimatePresence mode="wait">
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/rating" element={<RatingPage />} />
-            <Route path="/cadet/:id" element={<CadetProfile />} />
-            <Route path="/news" element={<NewsPage />} />
-            <Route path="/tasks" element={<TasksPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/admin" element={<AdminPage />} />
-          </Routes>
-        </AnimatePresence>
-      </div>
-      <NotificationToast toasts={toasts} onRemove={removeToast} />
-    </>
+    <div className="min-h-screen gradient-bg">
+      <Header />
+      <AnimatePresence mode="wait">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/rating" element={<RatingPage />} />
+          <Route path="/cadet/:id" element={<CadetProfile />} />
+          <Route path="/news" element={<NewsPage />} />
+          <Route path="/tasks" element={<TasksPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+        </Routes>
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -42,9 +37,11 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <AuthProvider>
-          <AppContent />
-        </AuthProvider>
+        <NotificationProvider>
+          <AuthProvider>
+            <AppContent />
+          </AuthProvider>
+        </NotificationProvider>
       </Router>
     </ErrorBoundary>
   );

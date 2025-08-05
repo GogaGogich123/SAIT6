@@ -15,19 +15,33 @@ import {
   Filter,
   Eye,
   UserCheck,
-  Medal
+  Medal,
+  BarChart3,
+  Calendar,
+  Bell,
+  MessageSquare,
+  TrendingUp,
+  Shield,
+  FileText,
+  Clock
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
 import SVGBackground from '../components/SVGBackground';
 
 const AdminPage: React.FC = () => {
   const { user, isAdmin } = useAuth();
+  const { success, error, info } = useNotifications();
   const [activeTab, setActiveTab] = useState('cadets');
   const [isEditing, setIsEditing] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPlatoon, setSelectedPlatoon] = useState('all');
   const [selectedSquad, setSelectedSquad] = useState('all');
+  const [newNewsTitle, setNewNewsTitle] = useState('');
+  const [newNewsContent, setNewNewsContent] = useState('');
+  const [newNewsAuthor, setNewNewsAuthor] = useState('');
+  const [isMainNews, setIsMainNews] = useState(false);
 
   if (!user || !isAdmin) {
     return (
@@ -47,6 +61,8 @@ const AdminPage: React.FC = () => {
     { key: 'news', name: 'Новости', icon: Newspaper },
     { key: 'tasks', name: 'Задания', icon: CheckSquare },
     { key: 'achievements', name: 'Достижения', icon: Medal },
+    { key: 'analytics', name: 'Аналитика', icon: BarChart3 },
+    { key: 'notifications', name: 'Уведомления', icon: Bell },
   ];
 
   const mockCadets = [
@@ -58,9 +74,9 @@ const AdminPage: React.FC = () => {
   ];
 
   const mockNews = [
-    { id: '1', title: 'Торжественное построение', isMain: true, date: '2024-02-23' },
-    { id: '2', title: 'Победа в соревнованиях', isMain: false, date: '2024-02-20' },
-    { id: '3', title: 'Открытие библиотеки', isMain: false, date: '2024-02-15' },
+    { id: '1', title: 'Торжественное построение', isMain: true, date: '2024-02-23', author: 'Администрация', views: 245, likes: 32, comments: 8 },
+    { id: '2', title: 'Победа в соревнованиях', isMain: false, date: '2024-02-20', author: 'Спортивный отдел', views: 189, likes: 28, comments: 5 },
+    { id: '3', title: 'Открытие библиотеки', isMain: false, date: '2024-02-15', author: 'Библиотека', views: 156, likes: 15, comments: 3 },
   ];
 
   const platoons = ['7-1', '7-2', '8-1', '8-2', '9-1', '9-2', '10-1', '10-2', '11-1', '11-2'];
@@ -73,6 +89,23 @@ const AdminPage: React.FC = () => {
     const matchesSquad = selectedSquad === 'all' || cadet.squad.toString() === selectedSquad;
     return matchesSearch && matchesPlatoon && matchesSquad;
   });
+
+  const handleCreateNews = () => {
+    if (!newNewsTitle.trim() || !newNewsContent.trim() || !newNewsAuthor.trim()) {
+      error('Ошибка', 'Заполните все обязательные поля');
+      return;
+    }
+    
+    success('Новость создана!', `Новость "${newNewsTitle}" успешно опубликована`);
+    setNewNewsTitle('');
+    setNewNewsContent('');
+    setNewNewsAuthor('');
+    setIsMainNews(false);
+  };
+
+  const handleSendNotification = (type: 'all' | 'platoon' | 'individual', message: string) => {
+    success('Уведомление отправлено!', `Уведомление отправлено: ${type === 'all' ? 'всем кадетам' : type === 'platoon' ? 'взводу' : 'выбранным кадетам'}`);
+  };
 
   const renderCadetsTab = () => (
     <div className="space-y-6">
@@ -209,6 +242,18 @@ const AdminPage: React.FC = () => {
     </div>
   );
 
+  const handleAwardPoints = (category: string, cadetName: string, points: number, description: string) => {
+    if (!cadetName.trim() || !points || !description.trim()) {
+      error('Ошибка', 'Заполните все поля');
+      return;
+    }
+    
+    success(
+      'Баллы начислены!', 
+      `${cadetName} получил ${points > 0 ? '+' : ''}${points} баллов за "${description}"`
+    );
+  };
+
   const renderScoresTab = () => (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -224,27 +269,39 @@ const AdminPage: React.FC = () => {
           className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6"
           whileHover={{ scale: 1.02, y: -5 }}
         >
+          {/* Учёба форма */}
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-white">Учёба</h4>
             <Award className="h-8 w-8 text-blue-200" />
           </div>
           <div className="space-y-2">
             <input
+              id="study-cadet"
               type="text"
               placeholder="Имя кадета"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-blue-200 text-sm"
             />
             <input
+              id="study-points"
               type="number"
               placeholder="Баллы"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-blue-200 text-sm"
             />
             <input
+              id="study-description"
               type="text"
               placeholder="Описание"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-blue-200 text-sm"
             />
-            <button className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded font-semibold transition-colors">
+            <button 
+              onClick={() => {
+                const cadet = (document.getElementById('study-cadet') as HTMLInputElement)?.value;
+                const points = parseInt((document.getElementById('study-points') as HTMLInputElement)?.value);
+                const description = (document.getElementById('study-description') as HTMLInputElement)?.value;
+                handleAwardPoints('study', cadet, points, description);
+              }}
+              className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded font-semibold transition-colors"
+            >
               Начислить
             </button>
           </div>
@@ -254,27 +311,39 @@ const AdminPage: React.FC = () => {
           className="bg-gradient-to-br from-red-600 to-red-800 rounded-xl p-6"
           whileHover={{ scale: 1.02, y: -5 }}
         >
+          {/* Дисциплина форма */}
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-white">Дисциплина</h4>
             <Award className="h-8 w-8 text-red-200" />
           </div>
           <div className="space-y-2">
             <input
+              id="discipline-cadet"
               type="text"
               placeholder="Имя кадета"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-red-200 text-sm"
             />
             <input
+              id="discipline-points"
               type="number"
               placeholder="Баллы"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-red-200 text-sm"
             />
             <input
+              id="discipline-description"
               type="text"
               placeholder="Описание"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-red-200 text-sm"
             />
-            <button className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded font-semibold transition-colors">
+            <button 
+              onClick={() => {
+                const cadet = (document.getElementById('discipline-cadet') as HTMLInputElement)?.value;
+                const points = parseInt((document.getElementById('discipline-points') as HTMLInputElement)?.value);
+                const description = (document.getElementById('discipline-description') as HTMLInputElement)?.value;
+                handleAwardPoints('discipline', cadet, points, description);
+              }}
+              className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded font-semibold transition-colors"
+            >
               Начислить
             </button>
           </div>
@@ -284,27 +353,39 @@ const AdminPage: React.FC = () => {
           className="bg-gradient-to-br from-green-600 to-green-800 rounded-xl p-6"
           whileHover={{ scale: 1.02, y: -5 }}
         >
+          {/* Мероприятия форма */}
           <div className="flex items-center justify-between mb-4">
             <h4 className="text-lg font-semibold text-white">Мероприятия</h4>
             <Award className="h-8 w-8 text-green-200" />
           </div>
           <div className="space-y-2">
             <input
+              id="events-cadet"
               type="text"
               placeholder="Имя кадета"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-green-200 text-sm"
             />
             <input
+              id="events-points"
               type="number"
               placeholder="Баллы"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-green-200 text-sm"
             />
             <input
+              id="events-description"
               type="text"
               placeholder="Описание"
               className="w-full px-3 py-2 bg-white/20 border border-white/30 rounded text-white placeholder-green-200 text-sm"
             />
-            <button className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded font-semibold transition-colors">
+            <button 
+              onClick={() => {
+                const cadet = (document.getElementById('events-cadet') as HTMLInputElement)?.value;
+                const points = parseInt((document.getElementById('events-points') as HTMLInputElement)?.value);
+                const description = (document.getElementById('events-description') as HTMLInputElement)?.value;
+                handleAwardPoints('events', cadet, points, description);
+              }}
+              className="w-full bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded font-semibold transition-colors"
+            >
               Начислить
             </button>
           </div>
@@ -317,12 +398,59 @@ const AdminPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-bold text-white">Управление новостями</h3>
-        <button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center space-x-2 hover:scale-105 transition-transform">
-          <Plus className="h-4 w-4" />
-          <span>Создать новость</span>
-        </button>
       </div>
 
+      {/* Create News Form */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-6"
+      >
+        <h4 className="text-lg font-semibold text-white mb-4">Создать новость</h4>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <input
+            type="text"
+            placeholder="Заголовок новости"
+            value={newNewsTitle}
+            onChange={(e) => setNewNewsTitle(e.target.value)}
+            className="px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          />
+          <input
+            type="text"
+            placeholder="Автор"
+            value={newNewsAuthor}
+            onChange={(e) => setNewNewsAuthor(e.target.value)}
+            className="px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          />
+        </div>
+        <textarea
+          placeholder="Содержание новости..."
+          value={newNewsContent}
+          onChange={(e) => setNewNewsContent(e.target.value)}
+          rows={4}
+          className="w-full px-4 py-2 bg-white/20 border border-white/30 rounded-lg text-white placeholder-blue-300 focus:outline-none focus:ring-2 focus:ring-yellow-400 resize-none mb-4"
+        />
+        <div className="flex items-center justify-between">
+          <label className="flex items-center space-x-2 text-white">
+            <input
+              type="checkbox"
+              checked={isMainNews}
+              onChange={(e) => setIsMainNews(e.target.checked)}
+              className="rounded"
+            />
+            <span>Главная новость</span>
+          </label>
+          <button
+            onClick={handleCreateNews}
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white px-6 py-2 rounded-lg font-semibold flex items-center space-x-2 transition-all duration-300"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Опубликовать</span>
+          </button>
+        </div>
+      </motion.div>
+
+      {/* News List */}
       <div className="bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -330,6 +458,12 @@ const AdminPage: React.FC = () => {
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-blue-200 uppercase tracking-wider">
                   Заголовок
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-blue-200 uppercase tracking-wider">
+                  Автор
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-blue-200 uppercase tracking-wider">
+                  Статистика
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-blue-200 uppercase tracking-wider">
                   Тип
@@ -345,7 +479,15 @@ const AdminPage: React.FC = () => {
             <tbody className="divide-y divide-white/10">
               {mockNews.map((news) => (
                 <tr key={news.id} className="hover:bg-white/5">
-                  <td className="px-6 py-4 whitespace-nowrap text-white">{news.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-white font-medium">{news.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-blue-200">{news.author}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="flex space-x-4 text-sm">
+                      <span className="text-blue-300">👁 {news.views}</span>
+                      <span className="text-red-300">❤ {news.likes}</span>
+                      <span className="text-green-300">💬 {news.comments}</span>
+                    </div>
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
                       news.isMain ? 'bg-yellow-400 text-black' : 'bg-blue-400/20 text-blue-300'
@@ -356,12 +498,27 @@ const AdminPage: React.FC = () => {
                   <td className="px-6 py-4 whitespace-nowrap text-blue-200">{news.date}</td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex space-x-2">
-                      <button className="text-blue-400 hover:text-blue-300">
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="text-green-400 hover:text-green-300"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="text-blue-400 hover:text-blue-300"
+                      >
                         <Edit className="h-4 w-4" />
-                      </button>
-                      <button className="text-red-400 hover:text-red-300">
+                      </motion.button>
+                      <motion.button 
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                        className="text-red-400 hover:text-red-300"
+                      >
                         <Trash2 className="h-4 w-4" />
-                      </button>
+                      </motion.button>
                     </div>
                   </td>
                 </tr>
@@ -370,6 +527,172 @@ const AdminPage: React.FC = () => {
           </table>
         </div>
       </div>
+    </div>
+  );
+
+  const renderAnalyticsTab = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-bold text-white">Аналитика системы</h3>
+      </div>
+
+      {/* Analytics Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <motion.div 
+          className="bg-gradient-to-br from-blue-600 to-blue-800 rounded-xl p-6 text-center"
+          whileHover={{ scale: 1.02, y: -5 }}
+        >
+          <Users className="h-8 w-8 text-blue-200 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">450</div>
+          <div className="text-blue-200">Всего кадетов</div>
+          <div className="text-xs text-green-300 mt-1">+12 за месяц</div>
+        </motion.div>
+
+        <motion.div 
+          className="bg-gradient-to-br from-green-600 to-green-800 rounded-xl p-6 text-center"
+          whileHover={{ scale: 1.02, y: -5 }}
+        >
+          <TrendingUp className="h-8 w-8 text-green-200 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">87%</div>
+          <div className="text-green-200">Активность</div>
+          <div className="text-xs text-green-300 mt-1">+5% за неделю</div>
+        </motion.div>
+
+        <motion.div 
+          className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl p-6 text-center"
+          whileHover={{ scale: 1.02, y: -5 }}
+        >
+          <FileText className="h-8 w-8 text-purple-200 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">156</div>
+          <div className="text-purple-200">Заданий выполнено</div>
+          <div className="text-xs text-green-300 mt-1">+23 за неделю</div>
+        </motion.div>
+
+        <motion.div 
+          className="bg-gradient-to-br from-orange-600 to-orange-800 rounded-xl p-6 text-center"
+          whileHover={{ scale: 1.02, y: -5 }}
+        >
+          <Medal className="h-8 w-8 text-orange-200 mx-auto mb-2" />
+          <div className="text-2xl font-bold text-white">89</div>
+          <div className="text-orange-200">Достижений выдано</div>
+          <div className="text-xs text-green-300 mt-1">+7 за неделю</div>
+        </motion.div>
+      </div>
+
+      {/* Recent Activity */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+      >
+        <h4 className="text-lg font-semibold text-white mb-4">Последняя активность</h4>
+        <div className="space-y-3">
+          {[
+            { action: 'Новый кадет зарегистрирован', user: 'Смирнов А.В.', time: '5 мин назад', type: 'user' },
+            { action: 'Задание выполнено', user: 'Иванов А.Д.', time: '15 мин назад', type: 'task' },
+            { action: 'Достижение получено', user: 'Петров М.А.', time: '1 час назад', type: 'achievement' },
+            { action: 'Новость опубликована', user: 'Администратор', time: '2 часа назад', type: 'news' },
+          ].map((activity, index) => (
+            <div key={index} className="flex items-center space-x-3 p-3 bg-white/5 rounded-lg">
+              <div className={`w-2 h-2 rounded-full ${
+                activity.type === 'user' ? 'bg-blue-400' :
+                activity.type === 'task' ? 'bg-green-400' :
+                activity.type === 'achievement' ? 'bg-yellow-400' : 'bg-purple-400'
+              }`}></div>
+              <div className="flex-grow">
+                <div className="text-white font-medium">{activity.action}</div>
+                <div className="text-blue-300 text-sm">{activity.user}</div>
+              </div>
+              <div className="text-blue-400 text-xs">{activity.time}</div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+
+  const renderNotificationsTab = () => (
+    <div className="space-y-6">
+      <div className="flex justify-between items-center">
+        <h3 className="text-xl font-bold text-white">Система уведомлений</h3>
+      </div>
+
+      {/* Send Notification */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+      >
+        <h4 className="text-lg font-semibold text-white mb-4">Отправить уведомление</h4>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <motion.button
+            whileHover={{ scale: 1.02, y: -2 }}
+            onClick={() => handleSendNotification('all', 'Общее уведомление для всех кадетов')}
+            className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white p-4 rounded-lg text-center transition-all duration-300"
+          >
+            <Users className="h-6 w-6 mx-auto mb-2" />
+            <div className="font-semibold">Всем кадетам</div>
+            <div className="text-xs text-blue-200">Массовое уведомление</div>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02, y: -2 }}
+            onClick={() => handleSendNotification('platoon', 'Уведомление для взвода')}
+            className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white p-4 rounded-lg text-center transition-all duration-300"
+          >
+            <Shield className="h-6 w-6 mx-auto mb-2" />
+            <div className="font-semibold">По взводам</div>
+            <div className="text-xs text-green-200">Выборочно по взводам</div>
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.02, y: -2 }}
+            onClick={() => handleSendNotification('individual', 'Персональное уведомление')}
+            className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 text-white p-4 rounded-lg text-center transition-all duration-300"
+          >
+            <UserCheck className="h-6 w-6 mx-auto mb-2" />
+            <div className="font-semibold">Индивидуально</div>
+            <div className="text-xs text-purple-200">Конкретным кадетам</div>
+          </motion.button>
+        </div>
+      </motion.div>
+
+      {/* Notification History */}
+      <motion.div
+        initial={{ y: 20, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="bg-white/10 backdrop-blur-sm rounded-xl p-6"
+      >
+        <h4 className="text-lg font-semibold text-white mb-4">История уведомлений</h4>
+        <div className="space-y-3">
+          {[
+            { message: 'Напоминание о предстоящем мероприятии', type: 'all', time: '2 часа назад', status: 'delivered' },
+            { message: 'Изменение в расписании занятий', type: 'platoon', time: '1 день назад', status: 'delivered' },
+            { message: 'Поздравление с достижением', type: 'individual', time: '2 дня назад', status: 'read' },
+          ].map((notification, index) => (
+            <div key={index} className="flex items-center justify-between p-4 bg-white/5 rounded-lg">
+              <div className="flex-grow">
+                <div className="text-white font-medium">{notification.message}</div>
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className={`px-2 py-1 rounded-full text-xs ${
+                    notification.type === 'all' ? 'bg-blue-500/20 text-blue-300' :
+                    notification.type === 'platoon' ? 'bg-green-500/20 text-green-300' :
+                    'bg-purple-500/20 text-purple-300'
+                  }`}>
+                    {notification.type === 'all' ? 'Всем' : notification.type === 'platoon' ? 'Взвод' : 'Личное'}
+                  </span>
+                  <span className="text-blue-400 text-xs">{notification.time}</span>
+                </div>
+              </div>
+              <div className={`px-2 py-1 rounded-full text-xs ${
+                notification.status === 'delivered' ? 'bg-green-500/20 text-green-300' : 'bg-blue-500/20 text-blue-300'
+              }`}>
+                {notification.status === 'delivered' ? 'Доставлено' : 'Прочитано'}
+              </div>
+            </div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   );
 
@@ -395,7 +718,10 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
           <p className="text-blue-200 mb-4">Задания, ожидающие проверки администратором</p>
-          <button className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+          <button 
+            onClick={() => info('Проверка заданий', 'Переход к проверке заданий кадетов')}
+            className="w-full bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
             Проверить
           </button>
         </motion.div>
@@ -411,7 +737,10 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
           <p className="text-blue-200 mb-4">Задания, доступные для выполнения кадетами</p>
-          <button className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+          <button 
+            onClick={() => info('Управление заданиями', 'Переход к управлению активными заданиями')}
+            className="w-full bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
             Управлять
           </button>
         </motion.div>
@@ -427,7 +756,10 @@ const AdminPage: React.FC = () => {
             </div>
           </div>
           <p className="text-blue-200 mb-4">Успешно выполненные задания</p>
-          <button className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors">
+          <button 
+            onClick={() => info('Архив заданий', 'Просмотр завершенных заданий')}
+            className="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg font-semibold transition-colors"
+          >
             Просмотреть
           </button>
         </motion.div>
@@ -439,7 +771,10 @@ const AdminPage: React.FC = () => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <h3 className="text-xl font-bold text-white">Управление достижениями</h3>
-        <button className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center space-x-2 hover:scale-105 transition-transform">
+        <button 
+          onClick={() => info('Создание достижения', 'Функция создания нового достижения')}
+          className="bg-gradient-to-r from-purple-600 to-purple-700 text-white px-4 py-2 rounded-lg font-semibold flex items-center space-x-2 hover:scale-105 transition-transform"
+        >
           <Plus className="h-4 w-4" />
           <span>Создать достижение</span>
         </button>
@@ -487,7 +822,12 @@ const AdminPage: React.FC = () => {
                 <option value="sports">Спорт</option>
               </select>
             </div>
-            <button className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-4 py-2 rounded-lg font-semibold transition-all">
+            <button 
+              onClick={() => {
+                success('Достижение выдано!', 'Достижение успешно присвоено кадету');
+              }}
+              className="w-full bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white px-4 py-2 rounded-lg font-semibold transition-all"
+            >
               Выдать достижение
             </button>
           </div>
@@ -525,6 +865,7 @@ const AdminPage: React.FC = () => {
       </div>
     </div>
   );
+
   const renderTabContent = () => {
     switch (activeTab) {
       case 'cadets': return renderCadetsTab();
@@ -532,6 +873,8 @@ const AdminPage: React.FC = () => {
       case 'news': return renderNewsTab();
       case 'tasks': return renderTasksTab();
       case 'achievements': return renderAchievementsTab();
+      case 'analytics': return renderAnalyticsTab();
+      case 'notifications': return renderNotificationsTab();
       default: return renderCadetsTab();
     }
   };
