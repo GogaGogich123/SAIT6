@@ -237,30 +237,35 @@ export const loginUser = async (email: string, password: string): Promise<{ user
       const { data: cadetData, error: cadetError } = await supabase
         .from('cadets')
         .select('*')
-        .eq('auth_user_id', user.id)
+          .maybeSingle();
         .single();
 
       console.log('Cadet query result:', { cadetData, cadetError });
       
       if (cadetError) {
-        console.error('Error fetching cadet data:', cadetError);
-        // If no cadet record found, this might be a data issue
-        if (cadetError.code === 'PGRST116') {
+        }
+        return null;
+        // If no cadet record found by auth_user_id, try by email as fallback
+        if (!cadetData) {
           console.log('No cadet record found for user, checking if cadet exists by email...');
-          // Try to find cadet by email as fallback
           const { data: cadetByEmail, error: emailError } = await supabase
             .from('cadets')
             .select('*')
             .eq('email', user.email)
-            .single();
+            .maybeSingle();
           
           console.log('Cadet by email result:', { cadetByEmail, emailError });
           
-          if (cadetByEmail && !emailError) {
+          if (emailError) {
+            console.error('Error fetching cadet by email:', emailError);
+            return null;
+          }
+          
+          if (cadetByEmail) {
             return { user, cadet: cadetByEmail };
           }
         }
-        return null;
+        
       }
       
       return { user, cadet: cadetData };
